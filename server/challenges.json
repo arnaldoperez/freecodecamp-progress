@@ -1,0 +1,33 @@
+{
+    "componentChunkName": "component---src-pages-learn-tsx",
+    "path": "/learn",
+    "result": {
+        "data": {
+            "allChallengeNode": {
+                "nodes": [
+                    {
+                        "challenge": {
+                            "id": "6823ac607bfdbc46331b2559",
+                            "block": "workshop-curriculum-outline",
+                            "blockLabel": "workshop",
+                            "challengeType": 0,
+                            "title": "Step 1",
+                            "order": 0,
+                            "superBlock": "responsive-web-design-v9",
+                            "dashedName": "step-1",
+                            "blockLayout": "challenge-grid",
+                            "chapter": "html",
+                            "module": "basic-html",
+                            "fields": {
+                                "slug": "/learn/responsive-web-design-v9/workshop-curriculum-outline/step-1"
+                            }
+                        }
+                    }
+                ]
+            }
+        },
+        "pageContext": {}
+    },
+    "staticQueryHashes": [],
+    "slicesMap": {}
+}
