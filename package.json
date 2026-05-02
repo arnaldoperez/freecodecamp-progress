@@ -9,7 +9,8 @@
     "dev": "concurrently \"npm run dev:front\" \"npm run server\"",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "start": "tsx index.ts"
   },
   "dependencies": {
     "cors": "^2.8.6",
