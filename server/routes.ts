@@ -249,4 +249,8 @@ router.get("/get-user-challenges/:username", async (req: Request, res: Response)
     }
 });
 
+router.get("/get-project-challenges", (req: Request, res: Response) => {
+    res.json(blocksMap);
+});
+
 export default router;
