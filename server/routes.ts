@@ -117,7 +117,7 @@ async function loadChallenges(): Promise<void> {
         if (!fetchedSuccessfully) {
             console.warn("Warning: Failed to fetch any superblock data.");
             console.warn("Falling back to local server/challenges.json mock data...");
-            
+
             const fs = await import("fs/promises");
             const path = await import("path");
             const filePath = path.join(process.cwd(), "server", "challenges.json");
@@ -131,7 +131,7 @@ async function loadChallenges(): Promise<void> {
         for (const node of allNodes) {
             const challenge = node.challenge;
             if (!challenge || !challenge.block) continue;
-            
+
             const blockKey = challenge.block;
 
             if (!blocksMap[blockKey]) {
@@ -164,7 +164,8 @@ loadChallenges();
 
 router.get("/get-user-challenges/:username", async (req: Request, res: Response) => {
     const { username } = req.params as { username: string };
-
+    const { skipUnstarted } = req.query as { skipUnstarted: string };
+    const shouldSkipUnstarted = skipUnstarted === 'true';
     try {
         // 1. Fetch user profile data
         const profileUrl = `https://api.freecodecamp.org/users/get-public-profile?username=${encodeURIComponent(username)}`;
@@ -232,6 +233,11 @@ router.get("/get-user-challenges/:username", async (req: Request, res: Response)
             }
 
             blockData.started = blockData.completedCount > 0;
+
+            // Skip unstarted blocks if requested
+            if (!blockData.started && shouldSkipUnstarted) {
+                continue;
+            }
             output[blockKey] = blockData;
         }
 
