@@ -1,75 +1,38 @@
-# React + TypeScript + Vite
+# FreeCodeCamp Parser SPA
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Aplicación de página única (SPA) desarrollada con **React 19**, **TypeScript** y **Vite** para parsear el progreso y los desafíos completados de usuarios de freeCodeCamp, mostrando los resultados en **formato visual interactivo** y en **formato JSON exportable**, sin necesidad de ningún backend o servidor Express.
 
-Currently, two official plugins are available:
+## ✨ Características
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- **100% Client-side (SPA)**: Todo el procesamiento y agrupación de datos curriculares se ejecuta directamente en el navegador.
+- **Sin Express ni backend**: Se eliminó la dependencia de un servidor Node/Express intermedio.
+- **Doble formato de visualización**:
+  - 📊 **Vista Visual**: Navegación jerárquica (Superbloques → Módulos → Bloques), barras de progreso, porcentajes, contadores de retos completados, filtro por estado (*En progreso*, *Completado*, *Sin iniciar*) y buscador en tiempo real.
+  - 📋 **Vista JSON**: Visualizador de JSON formateado, botón de un clic para copiar al portapapeles y botón para descargar el archivo `.json` generado (`parsed` o `raw`).
+- **Opciones de entrada**:
+  - Búsqueda por nombre de usuario de freeCodeCamp (con soporte para proxy de desarrollo en Vite y proxies CORS automáticos).
+  - Pestaña para **pegar texto JSON** o **subir archivo `.json`** directamente (ideal para perfiles privados o uso sin conexión).
+  - Opción `skipUnstarted` para omitir bloques con 0% de progreso.
+- **Catálogo curricular completo**: Más de 700 bloques de freeCodeCamp preindexados (v9, v8, legacy y tracks de desarrollo web, JavaScript, Python, C#, etc.).
 
-## React Compiler
+## 🚀 Inicio Rápido
 
-The React Compiler is enabled on this template. See [this documentation](https://react.dev/learn/react-compiler) for more information.
-
-Note: This will impact Vite dev & build performances.
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+### Desarrollo
+```bash
+npm install
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Abre [http://localhost:5173](http://localhost:5173) en tu navegador.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+### Compilación para Producción (SPA estática)
+```bash
+npm run build
+```
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+Genera la carpeta `dist/` lista para ser desplegada en cualquier servidor estático (GitHub Pages, Vercel, Netlify, Cloudflare Pages, S3, etc.).
+
+### Previsualización
+```bash
+npm run preview
 ```
