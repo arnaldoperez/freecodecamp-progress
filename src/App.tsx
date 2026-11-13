@@ -59,7 +59,7 @@ export default function App() {
 
   const [username, setUsername] = useState(initial.username);
   const [skipUnstarted, setSkipUnstarted] = useState(initial.skipUnstarted);
-  const [outputTab, setOutputTab] = useState<'visual' | 'json'>(initial.format);
+  const outputTab = initial.format;
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -67,7 +67,6 @@ export default function App() {
   // Result state
   const [rawFCCData, setRawFCCData] = useState<any | null>(null);
   const [parsedResult, setParsedResult] = useState<ParsedFCCResult | null>(null);
-  const [copied, setCopied] = useState(false);
 
   // Visual navigation state
   const [selectedSuperBlock, setSelectedSuperBlock] = useState<string | null>(null);
@@ -84,6 +83,11 @@ export default function App() {
       setError(null);
       setSelectedSuperBlock(null);
       setSelectedModule(null);
+
+      // Expose globally for console or script access
+      if (typeof window !== 'undefined') {
+        (window as any).fccData = parsed.blocks;
+      }
     } catch (err: any) {
       setError(err.message || 'Error al procesar los datos de freeCodeCamp.');
       setParsedResult(null);
@@ -116,11 +120,6 @@ export default function App() {
     handleFetchUser(initial.username, initial.skipUnstarted);
   }, []);
 
-  const handleOutputTabChange = (tab: 'visual' | 'json') => {
-    setOutputTab(tab);
-    syncUrlParams(username, tab, skipUnstarted);
-  };
-
   const handleToggleSkipUnstarted = (checked: boolean) => {
     setSkipUnstarted(checked);
     syncUrlParams(username, outputTab, checked);
@@ -129,83 +128,46 @@ export default function App() {
     }
   };
 
-  const handleCopyJson = () => {
-    const textToCopy = JSON.stringify(parsedResult?.blocks, null, 2);
-    if (textToCopy) {
-      navigator.clipboard.writeText(textToCopy);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    }
-  };
+  const jsonUrl = `/?username=${encodeURIComponent(username.trim() || 'arnaldoperez')}&format=json${skipUnstarted ? '&skipUnstarted=true' : ''}`;
 
-  const handleDownloadJson = () => {
-    const textToDownload = JSON.stringify(parsedResult?.blocks, null, 2);
-    if (!textToDownload) return;
-
-    const blob = new Blob([textToDownload], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `fcc-${parsedResult?.username || 'user'}-blocks.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  };
-
-  // ==========================================
-  // PURE JSON MODE (when format=json is active)
-  // Renders purely the JSON output, not the website layout
-  // ==========================================
+  // ========================================================
+  // PURE STATIC JSON VIEW (No UI, plain text, exactly like an API)
+  // ========================================================
   if (outputTab === 'json') {
-    return (
-      <div className="min-h-screen bg-slate-950 text-slate-200 font-mono text-xs selection:bg-purple-500 selection:text-white">
-        {/* Floating action bar */}
-        <div className="fixed top-3 right-4 flex items-center gap-2 bg-slate-900/95 border border-slate-800 px-3.5 py-2 rounded-2xl shadow-2xl z-50 backdrop-blur">
-          <button
-            onClick={() => handleOutputTabChange('visual')}
-            className="text-purple-400 hover:text-purple-300 font-sans text-xs font-bold flex items-center gap-1.5 transition-colors"
-          >
-            <span>📊</span>
-            <span>Vista Visual</span>
-          </button>
-          <span className="text-slate-700">|</span>
-          <button
-            onClick={handleCopyJson}
-            disabled={!parsedResult}
-            className="text-slate-300 hover:text-white font-sans text-xs font-medium transition-colors disabled:opacity-50"
-          >
-            {copied ? '✓ ¡Copiado!' : 'Copiar'}
-          </button>
-          <span className="text-slate-700">|</span>
-          <button
-            onClick={handleDownloadJson}
-            disabled={!parsedResult}
-            className="text-slate-300 hover:text-white font-sans text-xs font-medium transition-colors disabled:opacity-50"
-          >
-            ⬇ Descargar .json
-          </button>
-        </div>
+    if (typeof document !== 'undefined') {
+      document.title = `${username || 'fcc'}.json`;
+    }
 
-        {/* Pure JSON output */}
-        <pre className="p-4 sm:p-6 overflow-x-auto whitespace-pre font-mono text-xs leading-relaxed text-slate-300">
-          <code>
-            {loading
-              ? JSON.stringify({ status: 'loading', username }, null, 2)
-              : error
-                ? JSON.stringify({ error, username }, null, 2)
-                : parsedResult
-                  ? JSON.stringify(parsedResult.blocks, null, 2)
-                  : JSON.stringify({ status: 'empty' }, null, 2)}
-          </code>
-        </pre>
-      </div>
+    const jsonText = loading
+      ? JSON.stringify({ status: 'loading', username }, null, 2)
+      : error
+        ? JSON.stringify({ error, username }, null, 2)
+        : parsedResult
+          ? JSON.stringify(parsedResult.blocks, null, 2)
+          : JSON.stringify({ status: 'initializing' }, null, 2);
+
+    return (
+      <pre
+        style={{
+          margin: 0,
+          padding: '16px',
+          fontFamily: 'monospace',
+          fontSize: '13px',
+          lineHeight: '1.5',
+          whiteSpace: 'pre-wrap',
+          wordBreak: 'break-word',
+          background: 'transparent',
+          color: 'inherit'
+        }}
+      >
+        {jsonText}
+      </pre>
     );
   }
 
-  // ==========================================
-  // VISUAL MODE (Interactive dashboard view)
-  // ==========================================
+  // ========================================================
+  // VISUAL VIEW (Interactive UI dashboard)
+  // ========================================================
   const groupedData: Record<string, Record<string, BlockCompletionData[]>> = {};
 
   if (parsedResult) {
@@ -252,18 +214,21 @@ export default function App() {
               </h1>
             </div>
             <p className="text-slate-400 text-sm mt-1">
-              SPA cliente sin Express • Parámetros en URL (<code className="text-purple-300 font-mono text-xs">?username=...&amp;format=json</code>)
+              SPA cliente estática sin Express • Parámetros en URL (<code className="text-purple-300 font-mono text-xs">?username=...&amp;format=json</code>)
             </p>
           </div>
           
           <div className="flex items-center gap-3 self-start sm:self-auto">
-            <button
-              onClick={() => handleOutputTabChange('json')}
-              className="px-4 py-2 rounded-xl text-xs font-bold transition-all bg-slate-900 hover:bg-slate-800 text-purple-400 border border-slate-800 hover:border-purple-500/40 flex items-center gap-1.5 shadow-md"
+            {/* Open Pure Static JSON in a new tab */}
+            <a
+              href={jsonUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-4 py-2 rounded-xl text-xs font-bold transition-all bg-purple-600/20 hover:bg-purple-600/40 text-purple-300 border border-purple-500/30 hover:border-purple-500/60 flex items-center gap-1.5 shadow-md"
             >
               <span>{"{ }"}</span>
-              <span>Modo JSON API</span>
-            </button>
+              <span>Abrir Vista JSON ↗</span>
+            </a>
             <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
               Modo SPA
@@ -375,15 +340,17 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* View Switcher Button */}
+                {/* Open JSON in new tab button */}
                 <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => handleOutputTabChange('json')}
+                  <a
+                    href={jsonUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
                     className="px-5 py-2.5 rounded-xl text-xs font-bold transition-all bg-purple-600 hover:bg-purple-500 text-white shadow-md shadow-purple-600/30 flex items-center gap-2"
                   >
                     <span>{"{ }"}</span>
-                    <span>Ver Formato JSON</span>
-                  </button>
+                    <span>Abrir JSON Estático en Nueva Pestaña ↗</span>
+                  </a>
                 </div>
               </div>
 
@@ -591,60 +558,60 @@ export default function App() {
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                   {groupedData[selectedSuperBlock][selectedModule].map(block => (
-                        <div 
-                          key={block.blockName} 
-                          className={`p-6 rounded-2xl border transition-all duration-300 relative overflow-hidden group hover:-translate-y-1 ${
-                            block.completionPercentage === 100 
-                              ? 'bg-emerald-500/10 border-emerald-500/30 hover:border-emerald-500/50 hover:shadow-[0_8px_30px_rgb(16,185,129,0.12)]' 
-                              : block.started
-                                ? 'bg-amber-500/10 border-amber-500/30 hover:border-amber-500/50 hover:shadow-[0_8px_30px_rgb(245,158,11,0.12)]'
-                                : 'bg-slate-900/60 border-slate-800 hover:border-slate-700 hover:bg-slate-900'
-                          }`}
-                        >
-                          {/* Status Badge */}
-                          <div className="absolute top-5 right-5 flex items-center gap-2">
-                            {block.started && block.completionPercentage < 100 && (
-                              <span className="px-2.5 py-1 text-[11px] font-bold tracking-wider uppercase bg-amber-500/20 text-amber-300 rounded-full border border-amber-500/20">
-                                En Progreso
-                              </span>
-                            )}
-                            {block.completionPercentage === 100 && (
-                              <span className="px-2.5 py-1 text-[11px] font-bold tracking-wider uppercase bg-emerald-500/20 text-emerald-300 rounded-full border border-emerald-500/20">
-                                Completado
-                              </span>
-                            )}
-                            {!block.started && (
-                              <span className="px-2.5 py-1 text-[11px] font-bold tracking-wider uppercase bg-slate-800 text-slate-400 rounded-full border border-slate-700">
-                                Pendiente
-                              </span>
-                            )}
-                          </div>
+                    <div 
+                      key={block.blockName} 
+                      className={`p-6 rounded-2xl border transition-all duration-300 relative overflow-hidden group hover:-translate-y-1 ${
+                        block.completionPercentage === 100 
+                          ? 'bg-emerald-500/10 border-emerald-500/30 hover:border-emerald-500/50 hover:shadow-[0_8px_30px_rgb(16,185,129,0.12)]' 
+                          : block.started
+                            ? 'bg-amber-500/10 border-amber-500/30 hover:border-amber-500/50 hover:shadow-[0_8px_30px_rgb(245,158,11,0.12)]'
+                            : 'bg-slate-900/60 border-slate-800 hover:border-slate-700 hover:bg-slate-900'
+                      }`}
+                    >
+                      {/* Status Badge */}
+                      <div className="absolute top-5 right-5 flex items-center gap-2">
+                        {block.started && block.completionPercentage < 100 && (
+                          <span className="px-2.5 py-1 text-[11px] font-bold tracking-wider uppercase bg-amber-500/20 text-amber-300 rounded-full border border-amber-500/20">
+                            En Progreso
+                          </span>
+                        )}
+                        {block.completionPercentage === 100 && (
+                          <span className="px-2.5 py-1 text-[11px] font-bold tracking-wider uppercase bg-emerald-500/20 text-emerald-300 rounded-full border border-emerald-500/20">
+                            Completado
+                          </span>
+                        )}
+                        {!block.started && (
+                          <span className="px-2.5 py-1 text-[11px] font-bold tracking-wider uppercase bg-slate-800 text-slate-400 rounded-full border border-slate-700">
+                            Pendiente
+                          </span>
+                        )}
+                      </div>
 
-                          <div className="pr-24">
-                            <h5 className="font-bold text-slate-100 mb-1 capitalize truncate text-base" title={block.blockName.replace(/-/g, ' ')}>
-                              {block.blockName.replace(/-/g, ' ')}
-                            </h5>
-                            <div className="text-xs font-medium text-slate-400 capitalize">
-                              {block.blockLabel}
-                            </div>
-                          </div>
-
-                          <div className="flex items-end justify-between mt-6">
-                            <div className="text-3xl font-black tracking-tighter opacity-90">
-                              {block.completionPercentage}%
-                            </div>
-                            <div className="text-xs font-bold text-slate-400 bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-800">
-                              {block.completedCount} / {block.totalChallenges}
-                            </div>
-                          </div>
-                          
-                          <div className="absolute bottom-0 left-0 w-full h-1 bg-transparent">
-                            <div 
-                              className={`h-full ${block.completionPercentage === 100 ? 'bg-emerald-500' : 'bg-amber-500'} opacity-60`}
-                              style={{ width: `${block.completionPercentage}%` }}
-                            ></div>
-                          </div>
+                      <div className="pr-24">
+                        <h5 className="font-bold text-slate-100 mb-1 capitalize truncate text-base" title={block.blockName.replace(/-/g, ' ')}>
+                          {block.blockName.replace(/-/g, ' ')}
+                        </h5>
+                        <div className="text-xs font-medium text-slate-400 capitalize">
+                          {block.blockLabel}
                         </div>
+                      </div>
+
+                      <div className="flex items-end justify-between mt-6">
+                        <div className="text-3xl font-black tracking-tighter opacity-90">
+                          {block.completionPercentage}%
+                        </div>
+                        <div className="text-xs font-bold text-slate-400 bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-800">
+                          {block.completedCount} / {block.totalChallenges}
+                        </div>
+                      </div>
+                      
+                      <div className="absolute bottom-0 left-0 w-full h-1 bg-transparent">
+                        <div 
+                          className={`h-full ${block.completionPercentage === 100 ? 'bg-emerald-500' : 'bg-amber-500'} opacity-60`}
+                          style={{ width: `${block.completionPercentage}%` }}
+                        ></div>
+                      </div>
+                    </div>
                   ))}
                 </div>
               </div>

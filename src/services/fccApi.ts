@@ -8,7 +8,9 @@ export async function fetchFCCUser(username: string): Promise<any> {
     throw new Error('Por favor, ingresa un nombre de usuario válido.');
   }
 
-  const fccUrl = `https://api.freecodecamp.org/users/get-public-profile?username=${encodeURIComponent(cleanUsername)}`;
+  // Use environment variable for the FreeCodeCamp API URL with fallback
+  const apiBaseUrl = import.meta.env.VITE_FCC_API_URL || 'https://api.freecodecamp.org/users/get-public-profile';
+  const fccUrl = `${apiBaseUrl}?username=${encodeURIComponent(cleanUsername)}`;
 
   // In 100% static hosting (Render Static Site, GitHub Pages), use public CORS proxies and direct call
   const endpoints: { url: string }[] = [
