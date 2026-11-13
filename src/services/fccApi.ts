@@ -1,5 +1,5 @@
 /**
- * Service to fetch FreeCodeCamp user profiles from the browser SPA.
+ * Service to fetch FreeCodeCamp user profiles from the browser SPA (100% static client-side).
  */
 
 export async function fetchFCCUser(username: string): Promise<any> {
@@ -10,29 +10,18 @@ export async function fetchFCCUser(username: string): Promise<any> {
 
   const fccUrl = `https://api.freecodecamp.org/users/get-public-profile?username=${encodeURIComponent(cleanUsername)}`;
 
-  const isLocal = typeof window !== 'undefined' && 
-    (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
-
-  // In production (e.g. Render static site), use AllOrigins CORS proxy directly to avoid 404 in console.
-  // In local dev, use the local Vite proxy.
-  const endpoints: { url: string }[] = isLocal
-    ? [
-        { url: `/fcc-api/users/get-public-profile?username=${encodeURIComponent(cleanUsername)}` },
-        { url: `https://api.allorigins.win/raw?url=${encodeURIComponent(fccUrl)}` },
-        { url: fccUrl }
-      ]
-    : [
-        { url: `https://api.allorigins.win/raw?url=${encodeURIComponent(fccUrl)}` },
-        { url: `/fcc-api/users/get-public-profile?username=${encodeURIComponent(cleanUsername)}` },
-        { url: fccUrl }
-      ];
+  // In 100% static hosting (Render Static Site, GitHub Pages), use public CORS proxies and direct call
+  const endpoints: { url: string }[] = [
+    { url: `https://api.allorigins.win/raw?url=${encodeURIComponent(fccUrl)}` },
+    { url: fccUrl }
+  ];
 
   let fccUserNotFound = false;
 
   for (const endpoint of endpoints) {
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 12000);
+      const timeoutId = setTimeout(() => controller.abort(), 14000);
 
       const res = await fetch(endpoint.url, {
         signal: controller.signal,
@@ -44,7 +33,7 @@ export async function fetchFCCUser(username: string): Promise<any> {
 
       const contentType = res.headers.get('content-type') || '';
 
-      // If the response is not JSON (e.g. 404 HTML/text page from static hosting), skip this endpoint
+      // If the response is not JSON, skip this endpoint
       if (!contentType.includes('application/json')) {
         continue;
       }
