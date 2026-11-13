@@ -8,11 +8,48 @@ function fccJsonPlugin(): Plugin {
   const handler = async (req: any, res: any, next: any) => {
     try {
       const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+
+      // 1. Proxy /fcc-api requests directly (works in both dev and preview)
+      if (url.pathname.startsWith('/fcc-api')) {
+        if (req.method === 'OPTIONS') {
+          res.statusCode = 204;
+          res.setHeader('Access-Control-Allow-Origin', '*');
+          res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+          res.setHeader('Access-Control-Allow-Headers', '*');
+          res.end();
+          return;
+        }
+
+        const targetPath = url.pathname.replace(/^\/fcc-api/, '') + url.search;
+        const targetUrl = `https://api.freecodecamp.org${targetPath}`;
+        try {
+          const proxyRes = await fetch(targetUrl, {
+            headers: {
+              Accept: 'application/json',
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
+            }
+          });
+          res.statusCode = proxyRes.status;
+          res.setHeader('Content-Type', proxyRes.headers.get('content-type') || 'application/json; charset=utf-8');
+          res.setHeader('Access-Control-Allow-Origin', '*');
+          const body = await proxyRes.text();
+          res.end(body);
+          return;
+        } catch (err: any) {
+          res.statusCode = 502;
+          res.setHeader('Content-Type', 'application/json; charset=utf-8');
+          res.setHeader('Access-Control-Allow-Origin', '*');
+          res.end(JSON.stringify({ error: `Proxy error: ${err.message}` }));
+          return;
+        }
+      }
+
+      // 2. Handle ?format=json or ?json=true
       const username = url.searchParams.get('username') || url.searchParams.get('u');
       const format = url.searchParams.get('format') || url.searchParams.get('view');
       const isJson = format === 'json' || url.searchParams.get('json') === 'true';
 
-      // Only handle if json format is explicitly requested
+      // If not JSON view, continue to next middleware
       if (!isJson) {
         return next();
       }
@@ -93,6 +130,15 @@ export default defineConfig({
     fccJsonPlugin()
   ],
   server: {
+    proxy: {
+      '/fcc-api': {
+        target: 'https://api.freecodecamp.org',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/fcc-api/, '')
+      }
+    }
+  },
+  preview: {
     proxy: {
       '/fcc-api': {
         target: 'https://api.freecodecamp.org',
