@@ -153,7 +153,59 @@ export default function App() {
     URL.revokeObjectURL(url);
   };
 
-  // Grouping for visual view
+  // ==========================================
+  // PURE JSON MODE (when format=json is active)
+  // Renders purely the JSON output, not the website layout
+  // ==========================================
+  if (outputTab === 'json') {
+    return (
+      <div className="min-h-screen bg-slate-950 text-slate-200 font-mono text-xs selection:bg-purple-500 selection:text-white">
+        {/* Floating action bar */}
+        <div className="fixed top-3 right-4 flex items-center gap-2 bg-slate-900/95 border border-slate-800 px-3.5 py-2 rounded-2xl shadow-2xl z-50 backdrop-blur">
+          <button
+            onClick={() => handleOutputTabChange('visual')}
+            className="text-purple-400 hover:text-purple-300 font-sans text-xs font-bold flex items-center gap-1.5 transition-colors"
+          >
+            <span>📊</span>
+            <span>Vista Visual</span>
+          </button>
+          <span className="text-slate-700">|</span>
+          <button
+            onClick={handleCopyJson}
+            disabled={!parsedResult}
+            className="text-slate-300 hover:text-white font-sans text-xs font-medium transition-colors disabled:opacity-50"
+          >
+            {copied ? '✓ ¡Copiado!' : 'Copiar'}
+          </button>
+          <span className="text-slate-700">|</span>
+          <button
+            onClick={handleDownloadJson}
+            disabled={!parsedResult}
+            className="text-slate-300 hover:text-white font-sans text-xs font-medium transition-colors disabled:opacity-50"
+          >
+            ⬇ Descargar .json
+          </button>
+        </div>
+
+        {/* Pure JSON output */}
+        <pre className="p-4 sm:p-6 overflow-x-auto whitespace-pre font-mono text-xs leading-relaxed text-slate-300">
+          <code>
+            {loading
+              ? JSON.stringify({ status: 'loading', username }, null, 2)
+              : error
+                ? JSON.stringify({ error, username }, null, 2)
+                : parsedResult
+                  ? JSON.stringify(parsedResult.blocks, null, 2)
+                  : JSON.stringify({ status: 'empty' }, null, 2)}
+          </code>
+        </pre>
+      </div>
+    );
+  }
+
+  // ==========================================
+  // VISUAL MODE (Interactive dashboard view)
+  // ==========================================
   const groupedData: Record<string, Record<string, BlockCompletionData[]>> = {};
 
   if (parsedResult) {
@@ -184,10 +236,6 @@ export default function App() {
     }
   }
 
-  const jsonEndpointUrl = typeof window !== 'undefined'
-    ? `${window.location.origin}/?username=${encodeURIComponent(username || 'arnaldoperez')}&format=json${skipUnstarted ? '&skipUnstarted=true' : ''}`
-    : `/?username=${encodeURIComponent(username || 'arnaldoperez')}&format=json`;
-
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 p-4 md:p-8 font-sans selection:bg-purple-500 selection:text-white">
       <div className="max-w-6xl mx-auto space-y-8">
@@ -204,14 +252,21 @@ export default function App() {
               </h1>
             </div>
             <p className="text-slate-400 text-sm mt-1">
-              SPA cliente sin Express • Parámetros en URL (<code className="text-purple-300 font-mono text-xs">?username=...&amp;format=json</code>) • Compatible con peticiones fetch
+              SPA cliente sin Express • Parámetros en URL (<code className="text-purple-300 font-mono text-xs">?username=...&amp;format=json</code>)
             </p>
           </div>
           
-          <div className="flex items-center gap-2 self-start sm:self-auto">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+          <div className="flex items-center gap-3 self-start sm:self-auto">
+            <button
+              onClick={() => handleOutputTabChange('json')}
+              className="px-4 py-2 rounded-xl text-xs font-bold transition-all bg-slate-900 hover:bg-slate-800 text-purple-400 border border-slate-800 hover:border-purple-500/40 flex items-center gap-1.5 shadow-md"
+            >
+              <span>{"{ }"}</span>
+              <span>Modo JSON API</span>
+            </button>
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-              Modo SPA URL-Synced
+              Modo SPA
             </span>
           </div>
         </header>
@@ -320,29 +375,14 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* View Switcher (Visual vs JSON) */}
-                <div className="flex bg-slate-950 p-1.5 rounded-2xl border border-slate-800 self-start md:self-auto">
-                  <button
-                    onClick={() => handleOutputTabChange('visual')}
-                    className={`px-5 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${
-                      outputTab === 'visual'
-                        ? 'bg-purple-600 text-white shadow-md shadow-purple-600/30'
-                        : 'text-slate-400 hover:text-white'
-                    }`}
-                  >
-                    <span>📊</span>
-                    <span>Vista Visual</span>
-                  </button>
+                {/* View Switcher Button */}
+                <div className="flex items-center gap-2">
                   <button
                     onClick={() => handleOutputTabChange('json')}
-                    className={`px-5 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${
-                      outputTab === 'json'
-                        ? 'bg-purple-600 text-white shadow-md shadow-purple-600/30'
-                        : 'text-slate-400 hover:text-white'
-                    }`}
+                    className="px-5 py-2.5 rounded-xl text-xs font-bold transition-all bg-purple-600 hover:bg-purple-500 text-white shadow-md shadow-purple-600/30 flex items-center gap-2"
                   >
                     <span>{"{ }"}</span>
-                    <span>Vista JSON</span>
+                    <span>Ver Formato JSON</span>
                   </button>
                 </div>
               </div>
@@ -379,182 +419,178 @@ export default function App() {
               </div>
             </div>
 
-            {/* TAB 1: VISUAL FORMAT */}
-            {outputTab === 'visual' && (
-              <div className="space-y-6">
+            {/* Visual View Controls: Breadcrumbs, Status Filter, Search */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-900/60 p-4 rounded-2xl border border-slate-800">
+              {/* Breadcrumb Navigation */}
+              <div className="flex flex-wrap items-center gap-2 text-sm text-slate-400 font-medium">
+                <button 
+                  onClick={() => { setSelectedSuperBlock(null); setSelectedModule(null); }}
+                  className={`hover:text-purple-400 transition-colors ${!selectedSuperBlock ? 'text-purple-400 font-bold' : ''}`}
+                >
+                  Todos los Superbloques
+                </button>
                 
-                {/* Visual View Controls: Breadcrumbs, Status Filter, Search */}
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-900/60 p-4 rounded-2xl border border-slate-800">
-                  {/* Breadcrumb Navigation */}
-                  <div className="flex flex-wrap items-center gap-2 text-sm text-slate-400 font-medium">
+                {selectedSuperBlock && (
+                  <>
+                    <span>/</span>
                     <button 
-                      onClick={() => { setSelectedSuperBlock(null); setSelectedModule(null); }}
-                      className={`hover:text-purple-400 transition-colors ${!selectedSuperBlock ? 'text-purple-400 font-bold' : ''}`}
+                      onClick={() => setSelectedModule(null)}
+                      className={`hover:text-purple-400 transition-colors capitalize ${!selectedModule ? 'text-purple-400 font-bold' : ''}`}
                     >
-                      Todos los Superbloques
+                      {selectedSuperBlock.replace(/-/g, ' ')}
                     </button>
-                    
-                    {selectedSuperBlock && (
-                      <>
-                        <span>/</span>
-                        <button 
-                          onClick={() => setSelectedModule(null)}
-                          className={`hover:text-purple-400 transition-colors capitalize ${!selectedModule ? 'text-purple-400 font-bold' : ''}`}
-                        >
-                          {selectedSuperBlock.replace(/-/g, ' ')}
-                        </button>
-                      </>
-                    )}
-                    
-                    {selectedModule && (
-                      <>
-                        <span>/</span>
-                        <span className="text-purple-400 font-bold capitalize">
-                          {selectedModule.replace(/-/g, ' ')}
-                        </span>
-                      </>
-                    )}
-                  </div>
+                  </>
+                )}
+                
+                {selectedModule && (
+                  <>
+                    <span>/</span>
+                    <span className="text-purple-400 font-bold capitalize">
+                      {selectedModule.replace(/-/g, ' ')}
+                    </span>
+                  </>
+                )}
+              </div>
 
-                  {/* Filters & Search */}
-                  <div className="flex flex-wrap items-center gap-3">
-                    <input
-                      type="text"
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      placeholder="Filtrar por nombre..."
-                      className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-purple-500 w-44"
-                    />
+              {/* Filters & Search */}
+              <div className="flex flex-wrap items-center gap-3">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Filtrar por nombre..."
+                  className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-purple-500 w-44"
+                />
 
-                    <select
-                      value={statusFilter}
-                      onChange={(e) => setStatusFilter(e.target.value as any)}
-                      className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-300 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value as any)}
+                  className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-300 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                >
+                  <option value="all">Todos los estados</option>
+                  <option value="in-progress">En progreso</option>
+                  <option value="completed">Completados (100%)</option>
+                  <option value="unstarted">Sin iniciar</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Level 1: Superblocks Grid */}
+            {!selectedSuperBlock && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {Object.entries(groupedData).map(([sbName, modules]) => {
+                  let sbTotal = 0;
+                  let sbCompleted = 0;
+                  Object.values(modules).forEach(modBlocks => {
+                    modBlocks.forEach(b => {
+                      sbTotal += b.totalChallenges;
+                      sbCompleted += b.completedCount;
+                    });
+                  });
+                  const sbPct = sbTotal > 0 ? (sbCompleted / sbTotal) * 100 : 0;
+
+                  return (
+                    <div 
+                      key={sbName} 
+                      onClick={() => setSelectedSuperBlock(sbName)}
+                      className="bg-slate-900/80 p-6 md:p-8 rounded-3xl border border-slate-800 hover:border-purple-500/50 cursor-pointer transition-all hover:-translate-y-1 hover:shadow-xl hover:shadow-purple-500/10 group relative overflow-hidden"
                     >
-                      <option value="all">Todos los estados</option>
-                      <option value="in-progress">En progreso</option>
-                      <option value="completed">Completados (100%)</option>
-                      <option value="unstarted">Sin iniciar</option>
-                    </select>
-                  </div>
-                </div>
-
-                {/* Level 1: Superblocks Grid */}
-                {!selectedSuperBlock && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {Object.entries(groupedData).map(([sbName, modules]) => {
-                      let sbTotal = 0;
-                      let sbCompleted = 0;
-                      Object.values(modules).forEach(modBlocks => {
-                        modBlocks.forEach(b => {
-                          sbTotal += b.totalChallenges;
-                          sbCompleted += b.completedCount;
-                        });
-                      });
-                      const sbPct = sbTotal > 0 ? (sbCompleted / sbTotal) * 100 : 0;
-
-                      return (
-                        <div 
-                          key={sbName} 
-                          onClick={() => setSelectedSuperBlock(sbName)}
-                          className="bg-slate-900/80 p-6 md:p-8 rounded-3xl border border-slate-800 hover:border-purple-500/50 cursor-pointer transition-all hover:-translate-y-1 hover:shadow-xl hover:shadow-purple-500/10 group relative overflow-hidden"
-                        >
-                          <div className="flex justify-between items-start mb-6">
-                            <h3 className="text-xl md:text-2xl font-bold text-white capitalize tracking-tight pr-4">
-                              {sbName.replace(/-/g, ' ')}
-                            </h3>
-                            <div className="text-2xl md:text-3xl font-black text-slate-200">
-                              {Math.round(sbPct)}%
-                            </div>
-                          </div>
-                          <div className="flex justify-between items-center text-sm font-medium text-slate-400 mb-4">
-                            <span>{Object.keys(modules).length} Módulos</span>
-                            <span>{sbCompleted} / {sbTotal} retos</span>
-                          </div>
-                          <div className="h-2 w-full bg-slate-950 rounded-full overflow-hidden shadow-inner">
-                            <div 
-                              className="h-full bg-gradient-to-r from-purple-500 to-indigo-500 rounded-full transition-all duration-700 ease-out"
-                              style={{ width: `${sbPct}%` }}
-                            ></div>
-                          </div>
+                      <div className="flex justify-between items-start mb-6">
+                        <h3 className="text-xl md:text-2xl font-bold text-white capitalize tracking-tight pr-4">
+                          {sbName.replace(/-/g, ' ')}
+                        </h3>
+                        <div className="text-2xl md:text-3xl font-black text-slate-200">
+                          {Math.round(sbPct)}%
                         </div>
-                      );
-                    })}
-                  </div>
-                )}
-
-                {/* Level 2: Modules Grid */}
-                {selectedSuperBlock && !selectedModule && groupedData[selectedSuperBlock] && (
-                  <div className="space-y-6">
-                    <div className="flex items-center justify-between">
-                      <h2 className="text-2xl md:text-3xl font-extrabold text-white capitalize tracking-tight">
-                        Módulos de {selectedSuperBlock.replace(/-/g, ' ')}
-                      </h2>
-                      <button 
-                        onClick={() => setSelectedSuperBlock(null)}
-                        className="text-sm font-semibold text-slate-400 hover:text-white bg-slate-800 px-4 py-2 rounded-xl transition-colors border border-slate-700 hover:border-slate-500"
-                      >
-                        ← Volver a Superbloques
-                      </button>
+                      </div>
+                      <div className="flex justify-between items-center text-sm font-medium text-slate-400 mb-4">
+                        <span>{Object.keys(modules).length} Módulos</span>
+                        <span>{sbCompleted} / {sbTotal} retos</span>
+                      </div>
+                      <div className="h-2 w-full bg-slate-950 rounded-full overflow-hidden shadow-inner">
+                        <div 
+                          className="h-full bg-gradient-to-r from-purple-500 to-indigo-500 rounded-full transition-all duration-700 ease-out"
+                          style={{ width: `${sbPct}%` }}
+                        ></div>
+                      </div>
                     </div>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                      {Object.entries(groupedData[selectedSuperBlock]).map(([modName, blocks]) => {
-                        let modTotal = 0;
-                        let modCompleted = 0;
-                        blocks.forEach(b => {
-                          modTotal += b.totalChallenges;
-                          modCompleted += b.completedCount;
-                        });
-                        const modPct = modTotal > 0 ? (modCompleted / modTotal) * 100 : 0;
+                  );
+                })}
+              </div>
+            )}
 
-                        return (
+            {/* Level 2: Modules Grid */}
+            {selectedSuperBlock && !selectedModule && groupedData[selectedSuperBlock] && (
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-2xl md:text-3xl font-extrabold text-white capitalize tracking-tight">
+                    Módulos de {selectedSuperBlock.replace(/-/g, ' ')}
+                  </h2>
+                  <button 
+                    onClick={() => setSelectedSuperBlock(null)}
+                    className="text-sm font-semibold text-slate-400 hover:text-white bg-slate-800 px-4 py-2 rounded-xl transition-colors border border-slate-700 hover:border-slate-500"
+                  >
+                    ← Volver a Superbloques
+                  </button>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                  {Object.entries(groupedData[selectedSuperBlock]).map(([modName, blocks]) => {
+                    let modTotal = 0;
+                    let modCompleted = 0;
+                    blocks.forEach(b => {
+                      modTotal += b.totalChallenges;
+                      modCompleted += b.completedCount;
+                    });
+                    const modPct = modTotal > 0 ? (modCompleted / modTotal) * 100 : 0;
+
+                    return (
+                      <div 
+                        key={modName}
+                        onClick={() => setSelectedModule(modName)}
+                        className="bg-slate-900/70 p-6 rounded-2xl border border-slate-800 hover:border-indigo-500/50 cursor-pointer transition-all hover:-translate-y-1 hover:shadow-lg hover:shadow-indigo-500/10 relative overflow-hidden"
+                      >
+                        <h4 className="text-lg font-bold text-slate-200 capitalize mb-4 flex items-center gap-3">
+                          <span className="w-2.5 h-2.5 rounded-full bg-indigo-400 shadow-[0_0_10px_rgba(129,140,248,0.5)]"></span>
+                          {modName.replace(/-/g, ' ')}
+                        </h4>
+                        
+                        <div className="flex justify-between items-end mt-6 mb-3">
+                          <div className="text-sm font-bold text-slate-400">{modCompleted} / {modTotal}</div>
+                          <div className="text-2xl font-black text-white">{Math.round(modPct)}%</div>
+                        </div>
+                        
+                        <div className="h-1.5 w-full bg-slate-950 rounded-full overflow-hidden shadow-inner">
                           <div 
-                            key={modName}
-                            onClick={() => setSelectedModule(modName)}
-                            className="bg-slate-900/70 p-6 rounded-2xl border border-slate-800 hover:border-indigo-500/50 cursor-pointer transition-all hover:-translate-y-1 hover:shadow-lg hover:shadow-indigo-500/10 relative overflow-hidden"
-                          >
-                            <h4 className="text-lg font-bold text-slate-200 capitalize mb-4 flex items-center gap-3">
-                              <span className="w-2.5 h-2.5 rounded-full bg-indigo-400 shadow-[0_0_10px_rgba(129,140,248,0.5)]"></span>
-                              {modName.replace(/-/g, ' ')}
-                            </h4>
-                            
-                            <div className="flex justify-between items-end mt-6 mb-3">
-                              <div className="text-sm font-bold text-slate-400">{modCompleted} / {modTotal}</div>
-                              <div className="text-2xl font-black text-white">{Math.round(modPct)}%</div>
-                            </div>
-                            
-                            <div className="h-1.5 w-full bg-slate-950 rounded-full overflow-hidden shadow-inner">
-                              <div 
-                                className="h-full bg-indigo-400 rounded-full transition-all duration-700 ease-out"
-                                style={{ width: `${modPct}%` }}
-                              ></div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
+                            className="h-full bg-indigo-400 rounded-full transition-all duration-700 ease-out"
+                            style={{ width: `${modPct}%` }}
+                          ></div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
-                {/* Level 3: Blocks Grid */}
-                {selectedSuperBlock && selectedModule && groupedData[selectedSuperBlock][selectedModule] && (
-                  <div className="space-y-6">
-                    <div className="flex items-center justify-between">
-                      <h2 className="text-xl md:text-2xl font-extrabold text-white capitalize tracking-tight flex items-center gap-3">
-                        <span className="w-3 h-3 rounded-full bg-indigo-400 shadow-[0_0_10px_rgba(129,140,248,0.5)]"></span>
-                        Bloques de {selectedModule.replace(/-/g, ' ')}
-                      </h2>
-                      <button 
-                        onClick={() => setSelectedModule(null)}
-                        className="text-sm font-semibold text-slate-400 hover:text-white bg-slate-800 px-4 py-2 rounded-xl transition-colors border border-slate-700 hover:border-slate-500"
-                      >
-                        ← Volver a Módulos
-                      </button>
-                    </div>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                      {groupedData[selectedSuperBlock][selectedModule].map(block => (
+            {/* Level 3: Blocks Grid */}
+            {selectedSuperBlock && selectedModule && groupedData[selectedSuperBlock][selectedModule] && (
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl md:text-2xl font-extrabold text-white capitalize tracking-tight flex items-center gap-3">
+                    <span className="w-3 h-3 rounded-full bg-indigo-400 shadow-[0_0_10px_rgba(129,140,248,0.5)]"></span>
+                    Bloques de {selectedModule.replace(/-/g, ' ')}
+                  </h2>
+                  <button 
+                    onClick={() => setSelectedModule(null)}
+                    className="text-sm font-semibold text-slate-400 hover:text-white bg-slate-800 px-4 py-2 rounded-xl transition-colors border border-slate-700 hover:border-slate-500"
+                  >
+                    ← Volver a Módulos
+                  </button>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                  {groupedData[selectedSuperBlock][selectedModule].map(block => (
                         <div 
                           key={block.blockName} 
                           className={`p-6 rounded-2xl border transition-all duration-300 relative overflow-hidden group hover:-translate-y-1 ${
@@ -609,71 +645,10 @@ export default function App() {
                             ></div>
                           </div>
                         </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* TAB 2: JSON FORMAT (URL COMPATIBLE WITH FETCH) */}
-            {outputTab === 'json' && (
-              <div className="bg-slate-900/90 rounded-3xl p-6 border border-slate-800 shadow-2xl space-y-4">
-                
-                {/* Banner indicating fetch API compatibility */}
-                <div className="p-4 rounded-2xl bg-purple-500/10 border border-purple-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div className="text-xs space-y-1">
-                    <div className="font-bold text-purple-300 flex items-center gap-1.5">
-                      <span>⚡</span>
-                      <span>URL compatible con fetch (<code className="bg-purple-900/40 px-1 py-0.5 rounded text-purple-200">application/json</code>)</span>
-                    </div>
-                    <p className="text-slate-400">
-                      Cualquier llamada <code className="text-purple-300">fetch('{jsonEndpointUrl}')</code> retornará directamente este JSON con status 200 y cabeceras CORS.
-                    </p>
-                  </div>
-                  <a
-                    href={jsonEndpointUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="self-start sm:self-auto px-3.5 py-1.5 rounded-xl bg-purple-600/30 hover:bg-purple-600/50 text-purple-300 text-xs font-bold transition-all border border-purple-500/40 flex items-center gap-1"
-                  >
-                    Abrir URL directa ↗
-                  </a>
-                </div>
-
-                {/* Header toolbar for JSON */}
-                <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-4">
-                  <div className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                    Bloques procesados ({Object.keys(parsedResult.blocks).length})
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={handleCopyJson}
-                      className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-200 border border-slate-700 transition-all flex items-center gap-1.5"
-                    >
-                      {copied ? '✓ ¡Copiado!' : '📋 Copiar JSON'}
-                    </button>
-                    <button
-                      onClick={handleDownloadJson}
-                      className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-xs font-bold text-white transition-all shadow-md shadow-purple-600/20 flex items-center gap-1.5"
-                    >
-                      ⬇ Descargar .json
-                    </button>
-                  </div>
-                </div>
-
-                {/* Preformatted code area */}
-                <div className="relative">
-                  <pre className="font-mono text-xs bg-slate-950 p-5 rounded-2xl overflow-x-auto text-slate-300 max-h-[600px] border border-slate-800 leading-relaxed shadow-inner">
-                    <code>
-                      {JSON.stringify(parsedResult.blocks, null, 2)}
-                    </code>
-                  </pre>
+                  ))}
                 </div>
               </div>
             )}
-
           </div>
         )}
 

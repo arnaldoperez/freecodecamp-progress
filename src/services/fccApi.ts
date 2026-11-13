@@ -10,22 +10,22 @@ export async function fetchFCCUser(username: string): Promise<any> {
 
   const fccUrl = `https://api.freecodecamp.org/users/get-public-profile?username=${encodeURIComponent(cleanUsername)}`;
 
-  // List of endpoints to try in order of preference
-  const endpoints: { url: string; isLocalProxy?: boolean }[] = [
-    // 1. Local / host proxy (works in Vite dev, Docker, and preview server)
-    {
-      url: `/fcc-api/users/get-public-profile?username=${encodeURIComponent(cleanUsername)}`,
-      isLocalProxy: true
-    },
-    // 2. AllOrigins raw proxy (reliable CORS proxy for client-side static hosting)
-    {
-      url: `https://api.allorigins.win/raw?url=${encodeURIComponent(fccUrl)}`
-    },
-    // 3. Direct freeCodeCamp API call (works if user has CORS disabled or same-origin)
-    {
-      url: fccUrl
-    }
-  ];
+  const isLocal = typeof window !== 'undefined' && 
+    (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+
+  // In production (e.g. Render static site), use AllOrigins CORS proxy directly to avoid 404 in console.
+  // In local dev, use the local Vite proxy.
+  const endpoints: { url: string }[] = isLocal
+    ? [
+        { url: `/fcc-api/users/get-public-profile?username=${encodeURIComponent(cleanUsername)}` },
+        { url: `https://api.allorigins.win/raw?url=${encodeURIComponent(fccUrl)}` },
+        { url: fccUrl }
+      ]
+    : [
+        { url: `https://api.allorigins.win/raw?url=${encodeURIComponent(fccUrl)}` },
+        { url: `/fcc-api/users/get-public-profile?username=${encodeURIComponent(cleanUsername)}` },
+        { url: fccUrl }
+      ];
 
   let fccUserNotFound = false;
 
@@ -44,7 +44,7 @@ export async function fetchFCCUser(username: string): Promise<any> {
 
       const contentType = res.headers.get('content-type') || '';
 
-      // If the response is not JSON (e.g. 404 HTML/text page from Render static hosting), skip this endpoint
+      // If the response is not JSON (e.g. 404 HTML/text page from static hosting), skip this endpoint
       if (!contentType.includes('application/json')) {
         continue;
       }
