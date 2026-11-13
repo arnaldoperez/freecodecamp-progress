@@ -12,10 +12,31 @@ export async function fetchFCCUser(username: string): Promise<any> {
   const apiBaseUrl = import.meta.env.VITE_FCC_API_URL || 'https://api.freecodecamp.org/users/get-public-profile';
   const fccUrl = `${apiBaseUrl}?username=${encodeURIComponent(cleanUsername)}`;
 
-  // In 100% static hosting (Render Static Site, GitHub Pages), use public CORS proxies and direct call
-  const endpoints: { url: string }[] = [
-    { url: `https://api.allorigins.win/raw?url=${encodeURIComponent(fccUrl)}` },
-    { url: fccUrl }
+  // Candidate endpoints with extraction logic
+  const endpoints: {
+    url: string;
+    extract: (json: any) => any;
+  }[] = [
+    // 1. AllOrigins JSON wrapper (most reliable for public browser requests)
+    {
+      url: `https://api.allorigins.win/get?url=${encodeURIComponent(fccUrl)}`,
+      extract: (data: any) => {
+        if (data && typeof data.contents === 'string') {
+          return JSON.parse(data.contents);
+        }
+        return data;
+      }
+    },
+    // 2. AllOrigins raw endpoint (fallback)
+    {
+      url: `https://api.allorigins.win/raw?url=${encodeURIComponent(fccUrl)}`,
+      extract: (data: any) => data
+    },
+    // 3. Direct freeCodeCamp API call (works if CORS is unblocked)
+    {
+      url: fccUrl,
+      extract: (data: any) => data
+    }
   ];
 
   let fccUserNotFound = false;
@@ -23,7 +44,7 @@ export async function fetchFCCUser(username: string): Promise<any> {
   for (const endpoint of endpoints) {
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 14000);
+      const timeoutId = setTimeout(() => controller.abort(), 15000);
 
       const res = await fetch(endpoint.url, {
         signal: controller.signal,
@@ -33,22 +54,25 @@ export async function fetchFCCUser(username: string): Promise<any> {
       });
       clearTimeout(timeoutId);
 
-      const contentType = res.headers.get('content-type') || '';
-
-      // If the response is not JSON, skip this endpoint
-      if (!contentType.includes('application/json')) {
+      const text = await res.text();
+      let rawJson: any;
+      try {
+        rawJson = JSON.parse(text);
+      } catch {
+        // Not a JSON response (e.g. HTML error from a proxy), try next endpoint
         continue;
       }
 
-      const data = await res.json();
+      let data: any;
+      try {
+        data = endpoint.extract(rawJson);
+      } catch {
+        continue;
+      }
 
       // Check if FreeCodeCamp explicitly returned a 404 / user not found error object
       if (res.status === 404 || (data && data.error && typeof data.error === 'string' && data.error.includes('not found'))) {
         fccUserNotFound = true;
-        continue;
-      }
-
-      if (!res.ok) {
         continue;
       }
 
@@ -64,7 +88,6 @@ export async function fetchFCCUser(username: string): Promise<any> {
         return data;
       }
 
-      // If shape didn't match, continue to next fallback
       continue;
     } catch (err: any) {
       if (err.message && err.message.includes('es privado')) {
