@@ -76,6 +76,47 @@ export function parseFCCUserData(
   rawData: any,
   options: { skipUnstarted?: boolean } = {}
 ): ParsedFCCResult {
+  // If data was already processed by the backend API:
+  if (rawData && rawData._preparsedBlocks) {
+    const blocks: Record<string, BlockCompletionData> = rawData._preparsedBlocks;
+    let totalCurriculumChallenges = 0;
+    let blocksStarted = 0;
+    let blocksCompleted = 0;
+    let totalUserCompleted = 0;
+    const filtered: Record<string, BlockCompletionData> = {};
+
+    for (const [key, block] of Object.entries(blocks)) {
+      totalCurriculumChallenges += block.totalChallenges;
+      if (block.started) blocksStarted++;
+      if (block.totalChallenges > 0 && block.completedCount >= block.totalChallenges) {
+        blocksCompleted++;
+      }
+      totalUserCompleted += block.completedCount;
+      if (options.skipUnstarted && !block.started) continue;
+      filtered[key] = block;
+    }
+
+    const overallPercentage = totalCurriculumChallenges > 0
+      ? parseFloat(((totalUserCompleted / totalCurriculumChallenges) * 100).toFixed(2))
+      : 0;
+
+    return {
+      username: rawData.result || 'Usuario',
+      profile: {
+        name: rawData.result || 'Usuario'
+      },
+      summary: {
+        totalCurriculumChallenges,
+        totalUserCompleted,
+        totalBlocks: Object.keys(blocks).length,
+        blocksStarted,
+        blocksCompleted,
+        overallPercentage
+      },
+      blocks: filtered
+    };
+  }
+
   const { username, profile } = extractUserProfile(rawData);
   const userCompleted = profile.completedChallenges || [];
 

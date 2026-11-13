@@ -1,38 +1,74 @@
-# FreeCodeCamp Parser SPA
+# FreeCodeCamp Tracker: SPA & REST API
 
-Aplicación de página única (SPA) desarrollada con **React 19**, **TypeScript** y **Vite** para parsear el progreso y los desafíos completados de usuarios de freeCodeCamp, mostrando los resultados en **formato visual interactivo** y en **formato JSON exportable**, sin necesidad de ningún backend o servidor Express.
+Monorepositorio con lógica de análisis unificada para **freeCodeCamp**: incluye una **SPA estática puramente visual** y una **API REST en Express** para consultas HTTP/JSON desde `fetch`, Postman o cualquier cliente externo.
 
-## ✨ Características
+Ambas aplicaciones comparten el mismo motor de parseo y el catálogo de más de 720 bloques curriculares (`v9`, `v8`, legacy, etc.), pero se construyen y despliegan por separado.
 
-- **100% Client-side (SPA)**: Todo el procesamiento y agrupación de datos curriculares se ejecuta directamente en el navegador.
-- **Sin Express ni backend**: Se eliminó la dependencia de un servidor Node/Express intermedio.
-- **Doble formato de visualización**:
-  - 📊 **Vista Visual**: Navegación jerárquica (Superbloques → Módulos → Bloques), barras de progreso, porcentajes, contadores de retos completados, filtro por estado (*En progreso*, *Completado*, *Sin iniciar*) y buscador en tiempo real.
-  - 📋 **Vista JSON**: Visualizador de JSON formateado, botón de un clic para copiar al portapapeles y botón para descargar el archivo `.json` generado (`parsed` o `raw`).
-- **Opciones de entrada**:
-  - Búsqueda por nombre de usuario de freeCodeCamp (con soporte para proxy de desarrollo en Vite y proxies CORS automáticos).
-  - Pestaña para **pegar texto JSON** o **subir archivo `.json`** directamente (ideal para perfiles privados o uso sin conexión).
-  - Opción `skipUnstarted` para omitir bloques con 0% de progreso.
-- **Catálogo curricular completo**: Más de 700 bloques de freeCodeCamp preindexados (v9, v8, legacy y tracks de desarrollo web, JavaScript, Python, C#, etc.).
+---
 
-## 🚀 Inicio Rápido
+## 🏗️ Estructura del Proyecto
 
-### Desarrollo
+```text
+├── server/
+│   └── index.ts                 # API REST en Express para peticiones HTTP/JSON
+├── src/
+│   ├── App.tsx                  # SPA estática puramente visual (sin vistas JSON)
+│   ├── services/
+│   │   ├── fccParser.ts         # Motor de parseo UNIFICADO (usado por la SPA y la API)
+│   │   └── fccApi.ts            # Cliente de consulta para el frontend
+│   ├── data/
+│   │   └── curriculumBlocks.json # Catálogo completo de bloques curriculares FCC
+│   └── types/                   # Definiciones TypeScript compartidas
+└── dist/                        # Salida estática compilada de la SPA
+```
+
+---
+
+## 1. 🌐 API REST (Express)
+
+Servidor HTTP optimizado para responder con `application/json; charset=utf-8` y cabeceras CORS activas (`Access-Control-Allow-Origin: *`). Compatible con Postman, `fetch()`, curl y cualquier lenguaje o cliente backend.
+
+### Endpoints
+* `GET /health`: Estado del servicio (`{"status":"ok"}`).
+* `GET /api/user/:username`: Retorna el mapa de bloques agrupados del usuario.
+* `GET /api/user/:username?skipUnstarted=true`: Retorna únicamente los bloques con progreso (`started: true`).
+* *(Alias de compatibilidad: `/api/get-user-challenges/:username`)*
+
+### Ejecución Local
 ```bash
-npm install
+# Iniciar servidor Express en desarrollo (puerto 3000 por defecto)
+npm run dev:server
+
+# Iniciar servidor en producción
+npm start
+```
+
+### Despliegue en Render (Web Service)
+* **Tipo de servicio:** Web Service
+* **Build Command:** `npm install`
+* **Start Command:** `npm start`
+* **Environment Variables:** `PORT=3000` (o el asignado automáticamente)
+
+---
+
+## 2. 📊 SPA Estática (React + Vite)
+
+Interfaz interactiva puramente visual:
+* Búsqueda por nombre de usuario sincronizada en la URL (`?username=...`).
+* Ocultar bloques sin iniciar (`skipUnstarted`).
+* Navegación fluida por niveles: **Superbloques → Módulos → Bloques**.
+* Filtros por estado (*Todos*, *En progreso*, *Completados*, *Sin iniciar*) y buscador de texto en tiempo real.
+* Barras de progreso, porcentajes y tarjetas de estado.
+
+### Ejecución Local
+```bash
 npm run dev
 ```
+Abre [http://localhost:5173](http://localhost:5173).
 
-Abre [http://localhost:5173](http://localhost:5173) en tu navegador.
-
-### Compilación para Producción (SPA estática)
-```bash
-npm run build
-```
-
-Genera la carpeta `dist/` lista para ser desplegada en cualquier servidor estático (GitHub Pages, Vercel, Netlify, Cloudflare Pages, S3, etc.).
-
-### Previsualización
-```bash
-npm run preview
-```
+### Compilación y Despliegue en Render (Static Site)
+* **Tipo de servicio:** Static Site
+* **Build Command:** `npm run build`
+* **Publish Directory:** `dist`
+* **Environment Variables (opcional):**
+  * `VITE_API_URL`: URL del backend Express desplegado (ej: `https://tu-api.onrender.com`). Si no se define, la SPA usa el modo cliente standalone.

@@ -1,5 +1,7 @@
 /**
- * Service to fetch FreeCodeCamp user profiles from the browser SPA (100% static client-side).
+ * Service to fetch FreeCodeCamp user profiles from the browser SPA.
+ * If VITE_API_URL is configured, it can query the companion Express API directly.
+ * Otherwise, it queries freeCodeCamp using CORS proxies.
  */
 
 export async function fetchFCCUser(username: string): Promise<any> {
@@ -8,16 +10,43 @@ export async function fetchFCCUser(username: string): Promise<any> {
     throw new Error('Por favor, ingresa un nombre de usuario válido.');
   }
 
-  // Use environment variable for the FreeCodeCamp API URL with fallback
+  // 1. If a dedicated backend API URL is configured in environment variables:
+  const backendApiUrl = import.meta.env.VITE_API_URL;
+  if (backendApiUrl) {
+    try {
+      const trimmedBackend = backendApiUrl.replace(/\/$/, '');
+      const backendEndpoint = `${trimmedBackend}/api/user/${encodeURIComponent(cleanUsername)}`;
+      const res = await fetch(backendEndpoint);
+      if (res.ok) {
+        const blocks = await res.json();
+        // Wrap blocks in format expected by parser or return directly
+        return {
+          entities: {
+            user: {
+              [cleanUsername]: {
+                username: cleanUsername,
+                completedChallenges: []
+              }
+            }
+          },
+          result: cleanUsername,
+          _preparsedBlocks: blocks
+        };
+      }
+    } catch {
+      // If backend call fails, fallback to direct freeCodeCamp fetching
+    }
+  }
+
+  // 2. Direct / Proxy freeCodeCamp fetching
   const apiBaseUrl = import.meta.env.VITE_FCC_API_URL || 'https://api.freecodecamp.org/users/get-public-profile';
   const fccUrl = `${apiBaseUrl}?username=${encodeURIComponent(cleanUsername)}`;
 
-  // Candidate endpoints with extraction logic
   const endpoints: {
     url: string;
     extract: (json: any) => any;
   }[] = [
-    // 1. AllOrigins JSON wrapper (most reliable for public browser requests)
+    // AllOrigins JSON wrapper
     {
       url: `https://api.allorigins.win/get?url=${encodeURIComponent(fccUrl)}`,
       extract: (data: any) => {
@@ -27,12 +56,12 @@ export async function fetchFCCUser(username: string): Promise<any> {
         return data;
       }
     },
-    // 2. AllOrigins raw endpoint (fallback)
+    // AllOrigins raw endpoint
     {
       url: `https://api.allorigins.win/raw?url=${encodeURIComponent(fccUrl)}`,
       extract: (data: any) => data
     },
-    // 3. Direct freeCodeCamp API call (works if CORS is unblocked)
+    // Direct call
     {
       url: fccUrl,
       extract: (data: any) => data
@@ -48,9 +77,7 @@ export async function fetchFCCUser(username: string): Promise<any> {
 
       const res = await fetch(endpoint.url, {
         signal: controller.signal,
-        headers: {
-          Accept: 'application/json'
-        }
+        headers: { Accept: 'application/json' }
       });
       clearTimeout(timeoutId);
 
@@ -59,7 +86,6 @@ export async function fetchFCCUser(username: string): Promise<any> {
       try {
         rawJson = JSON.parse(text);
       } catch {
-        // Not a JSON response (e.g. HTML error from a proxy), try next endpoint
         continue;
       }
 
@@ -70,9 +96,12 @@ export async function fetchFCCUser(username: string): Promise<any> {
         continue;
       }
 
-      // Check if FreeCodeCamp explicitly returned a 404 / user not found error object
       if (res.status === 404 || (data && data.error && typeof data.error === 'string' && data.error.includes('not found'))) {
         fccUserNotFound = true;
+        continue;
+      }
+
+      if (!res.ok) {
         continue;
       }
 
@@ -93,7 +122,6 @@ export async function fetchFCCUser(username: string): Promise<any> {
       if (err.message && err.message.includes('es privado')) {
         throw err;
       }
-      // Continue to next endpoint
     }
   }
 

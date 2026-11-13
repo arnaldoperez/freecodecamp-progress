@@ -6,24 +6,21 @@ import { fetchFCCUser } from './services/fccApi.ts';
 // Helper to read initial URL search parameters
 function getInitialUrlParams() {
   if (typeof window === 'undefined') {
-    return { username: 'arnaldoperez', format: 'visual' as const, skipUnstarted: false };
+    return { username: 'arnaldoperez', skipUnstarted: false };
   }
   const params = new URLSearchParams(window.location.search);
   const username = params.get('username') || params.get('u') || '';
-  const formatParam = params.get('format') || params.get('view');
-  const isJson = formatParam === 'json' || params.get('json') === 'true';
   const skipUnstarted = params.get('skipUnstarted') === 'true';
 
   return {
     username: username || 'arnaldoperez',
-    format: isJson ? ('json' as const) : ('visual' as const),
     skipUnstarted,
     hasInitialUsername: !!username
   };
 }
 
-// Helper to synchronize state with URL search params
-function syncUrlParams(username: string, format: 'visual' | 'json', skipUnstarted: boolean) {
+// Helper to synchronize username and filter state with URL search params
+function syncUrlParams(username: string, skipUnstarted: boolean) {
   if (typeof window === 'undefined') return;
   const url = new URL(window.location.href);
 
@@ -35,15 +32,10 @@ function syncUrlParams(username: string, format: 'visual' | 'json', skipUnstarte
     url.searchParams.delete('u');
   }
 
-  if (format === 'json') {
-    url.searchParams.set('format', 'json');
-    url.searchParams.delete('view');
-    url.searchParams.delete('json');
-  } else {
-    url.searchParams.delete('format');
-    url.searchParams.delete('view');
-    url.searchParams.delete('json');
-  }
+  // Remove any legacy format parameter
+  url.searchParams.delete('format');
+  url.searchParams.delete('view');
+  url.searchParams.delete('json');
 
   if (skipUnstarted) {
     url.searchParams.set('skipUnstarted', 'true');
@@ -59,7 +51,6 @@ export default function App() {
 
   const [username, setUsername] = useState(initial.username);
   const [skipUnstarted, setSkipUnstarted] = useState(initial.skipUnstarted);
-  const outputTab = initial.format;
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -83,11 +74,6 @@ export default function App() {
       setError(null);
       setSelectedSuperBlock(null);
       setSelectedModule(null);
-
-      // Expose globally for console or script access
-      if (typeof window !== 'undefined') {
-        (window as any).fccData = parsed.blocks;
-      }
     } catch (err: any) {
       setError(err.message || 'Error al procesar los datos de freeCodeCamp.');
       setParsedResult(null);
@@ -102,7 +88,7 @@ export default function App() {
     setError(null);
 
     // Sync URL with current user and options
-    syncUrlParams(cleanUser, outputTab, shouldSkip);
+    syncUrlParams(cleanUser, shouldSkip);
 
     try {
       const data = await fetchFCCUser(cleanUser);
@@ -122,52 +108,13 @@ export default function App() {
 
   const handleToggleSkipUnstarted = (checked: boolean) => {
     setSkipUnstarted(checked);
-    syncUrlParams(username, outputTab, checked);
+    syncUrlParams(username, checked);
     if (rawFCCData) {
       applyData(rawFCCData, checked);
     }
   };
 
-  const jsonUrl = `/?username=${encodeURIComponent(username.trim() || 'arnaldoperez')}&format=json${skipUnstarted ? '&skipUnstarted=true' : ''}`;
-
-  // ========================================================
-  // PURE STATIC JSON VIEW (No UI, plain text, exactly like an API)
-  // ========================================================
-  if (outputTab === 'json') {
-    if (typeof document !== 'undefined') {
-      document.title = `${username || 'fcc'}.json`;
-    }
-
-    const jsonText = loading
-      ? JSON.stringify({ status: 'loading', username }, null, 2)
-      : error
-        ? JSON.stringify({ error, username }, null, 2)
-        : parsedResult
-          ? JSON.stringify(parsedResult.blocks, null, 2)
-          : JSON.stringify({ status: 'initializing' }, null, 2);
-
-    return (
-      <pre
-        style={{
-          margin: 0,
-          padding: '16px',
-          fontFamily: 'monospace',
-          fontSize: '13px',
-          lineHeight: '1.5',
-          whiteSpace: 'pre-wrap',
-          wordBreak: 'break-word',
-          background: 'transparent',
-          color: 'inherit'
-        }}
-      >
-        {jsonText}
-      </pre>
-    );
-  }
-
-  // ========================================================
-  // VISUAL VIEW (Interactive UI dashboard)
-  // ========================================================
+  // Grouping for visual view: Superblock -> Module -> Blocks
   const groupedData: Record<string, Record<string, BlockCompletionData[]>> = {};
 
   if (parsedResult) {
@@ -210,28 +157,18 @@ export default function App() {
                 ( )
               </span>
               <h1 className="text-3xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-indigo-300 to-indigo-400 tracking-tight">
-                FCC Parser SPA
+                FCC Progress Tracker
               </h1>
             </div>
             <p className="text-slate-400 text-sm mt-1">
-              SPA cliente estática sin Express • Parámetros en URL (<code className="text-purple-300 font-mono text-xs">?username=...&amp;format=json</code>)
+              Visualizador SPA estático • Consulta y análisis visual del progreso en freeCodeCamp
             </p>
           </div>
           
-          <div className="flex items-center gap-3 self-start sm:self-auto">
-            {/* Open Pure Static JSON in a new tab */}
-            <a
-              href={jsonUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="px-4 py-2 rounded-xl text-xs font-bold transition-all bg-purple-600/20 hover:bg-purple-600/40 text-purple-300 border border-purple-500/30 hover:border-purple-500/60 flex items-center gap-1.5 shadow-md"
-            >
-              <span>{"{ }"}</span>
-              <span>Abrir Vista JSON ↗</span>
-            </a>
+          <div className="flex items-center gap-2 self-start sm:self-auto">
             <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-              Modo SPA
+              SPA Estática
             </span>
           </div>
         </header>
@@ -240,7 +177,7 @@ export default function App() {
         <div className="bg-slate-900/90 rounded-3xl p-6 md:p-8 border border-slate-800 shadow-2xl backdrop-blur-sm">
           <div className="space-y-4">
             <label className="block text-xs font-bold uppercase tracking-wider text-slate-400">
-              Nombre de usuario de FreeCodeCamp (sincronizado en la URL):
+              Nombre de usuario de FreeCodeCamp:
             </label>
             <div className="flex flex-col sm:flex-row gap-3">
               <input
@@ -254,15 +191,15 @@ export default function App() {
               <button
                 onClick={() => handleFetchUser()}
                 disabled={loading || !username.trim()}
-                className="bg-purple-600 hover:bg-purple-500 disabled:opacity-50 disabled:cursor-not-allowed text-white px-7 py-3.5 rounded-xl font-semibold transition-all shadow-lg hover:shadow-purple-500/25 flex items-center justify-center gap-2"
+                className="bg-purple-600 hover:bg-purple-500 disabled:opacity-50 disabled:cursor-not-allowed text-white px-7 py-3.5 rounded-xl font-semibold transition-all shadow-lg hover:shadow-purple-500/25 flex items-center justify-center gap-2 cursor-pointer"
               >
                 {loading ? (
                   <span className="flex items-center gap-2">
                     <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
-                    Parseando...
+                    Consultando...
                   </span>
                 ) : (
-                  'Cargar Usuario'
+                  'Ver Progreso'
                 )}
               </button>
             </div>
@@ -275,7 +212,7 @@ export default function App() {
                     setUsername('arnaldoperez');
                     handleFetchUser('arnaldoperez');
                   }}
-                  className="text-purple-400 hover:text-purple-300 underline font-medium"
+                  className="text-purple-400 hover:text-purple-300 underline font-medium cursor-pointer"
                 >
                   arnaldoperez
                 </button>
@@ -288,7 +225,7 @@ export default function App() {
                   onChange={(e) => handleToggleSkipUnstarted(e.target.checked)}
                   className="w-4 h-4 rounded text-purple-600 bg-slate-950 border-slate-700 focus:ring-purple-500"
                 />
-                <span>Ocultar no iniciados (<code className="text-purple-300">skipUnstarted=true</code>)</span>
+                <span>Ocultar bloques sin iniciar (<code className="text-purple-300">skipUnstarted</code>)</span>
               </label>
             </div>
           </div>
@@ -298,7 +235,7 @@ export default function App() {
             <div className="mt-6 p-4 bg-red-500/10 border border-red-500/20 rounded-2xl text-red-400 text-sm flex items-start gap-3">
               <span className="text-lg">⚠️</span>
               <div className="flex-1">
-                <p className="font-semibold">Error</p>
+                <p className="font-semibold">Error al consultar usuario</p>
                 <p className="mt-0.5 text-red-300/90 leading-relaxed">{error}</p>
               </div>
             </div>
@@ -340,17 +277,8 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Open JSON in new tab button */}
-                <div className="flex items-center gap-2">
-                  <a
-                    href={jsonUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="px-5 py-2.5 rounded-xl text-xs font-bold transition-all bg-purple-600 hover:bg-purple-500 text-white shadow-md shadow-purple-600/30 flex items-center gap-2"
-                  >
-                    <span>{"{ }"}</span>
-                    <span>Abrir JSON Estático en Nueva Pestaña ↗</span>
-                  </a>
+                <div className="text-xs font-medium text-slate-500">
+                  {Object.keys(parsedResult.blocks).length} bloques calculados
                 </div>
               </div>
 
@@ -392,7 +320,7 @@ export default function App() {
               <div className="flex flex-wrap items-center gap-2 text-sm text-slate-400 font-medium">
                 <button 
                   onClick={() => { setSelectedSuperBlock(null); setSelectedModule(null); }}
-                  className={`hover:text-purple-400 transition-colors ${!selectedSuperBlock ? 'text-purple-400 font-bold' : ''}`}
+                  className={`hover:text-purple-400 transition-colors cursor-pointer ${!selectedSuperBlock ? 'text-purple-400 font-bold' : ''}`}
                 >
                   Todos los Superbloques
                 </button>
@@ -402,7 +330,7 @@ export default function App() {
                     <span>/</span>
                     <button 
                       onClick={() => setSelectedModule(null)}
-                      className={`hover:text-purple-400 transition-colors capitalize ${!selectedModule ? 'text-purple-400 font-bold' : ''}`}
+                      className={`hover:text-purple-400 transition-colors capitalize cursor-pointer ${!selectedModule ? 'text-purple-400 font-bold' : ''}`}
                     >
                       {selectedSuperBlock.replace(/-/g, ' ')}
                     </button>
@@ -432,7 +360,7 @@ export default function App() {
                 <select
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value as any)}
-                  className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-300 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                  className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-300 focus:outline-none focus:ring-1 focus:ring-purple-500 cursor-pointer"
                 >
                   <option value="all">Todos los estados</option>
                   <option value="in-progress">En progreso</option>
@@ -495,7 +423,7 @@ export default function App() {
                   </h2>
                   <button 
                     onClick={() => setSelectedSuperBlock(null)}
-                    className="text-sm font-semibold text-slate-400 hover:text-white bg-slate-800 px-4 py-2 rounded-xl transition-colors border border-slate-700 hover:border-slate-500"
+                    className="text-sm font-semibold text-slate-400 hover:text-white bg-slate-800 px-4 py-2 rounded-xl transition-colors border border-slate-700 hover:border-slate-500 cursor-pointer"
                   >
                     ← Volver a Superbloques
                   </button>
@@ -550,7 +478,7 @@ export default function App() {
                   </h2>
                   <button 
                     onClick={() => setSelectedModule(null)}
-                    className="text-sm font-semibold text-slate-400 hover:text-white bg-slate-800 px-4 py-2 rounded-xl transition-colors border border-slate-700 hover:border-slate-500"
+                    className="text-sm font-semibold text-slate-400 hover:text-white bg-slate-800 px-4 py-2 rounded-xl transition-colors border border-slate-700 hover:border-slate-500 cursor-pointer"
                   >
                     ← Volver a Módulos
                   </button>
